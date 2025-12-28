@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Clock, Play, Pause, RotateCcw, Maximize } from 'lucide-react';
@@ -15,7 +17,8 @@ export function FocusMode() {
   const [seconds, setSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [pomodoroMinutes] = useState(25);
+  const [pomodoroMinutes, setPomodoroMinutes] = useState(25);
+  const [pomodoroSeconds, setPomodoroSeconds] = useState(0);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -23,16 +26,17 @@ export function FocusMode() {
     if (isRunning) {
       interval = setInterval(() => {
         setSeconds(prev => {
-          if (mode === 'pomodoro' && prev >= pomodoroMinutes * 60) {
-            setIsRunning(false);
-            handleSaveSession(prev);
-            toast({
-              title: '🎉 Pomodoro Complete!',
-              description: 'Great work! Time for a break.',
-            });
-            return 0;
+          if (mode === 'pomodoro') {
+            if (prev <= 1) {
+              setIsRunning(false);
+              handleSaveSession(pomodoroMinutes * 60);
+              sendPomodoroNotification();
+              return 0;
+            }
+            return prev - 1;
+          } else {
+            return prev + 1;
           }
-          return prev + 1;
         });
       }, 1000);
     }
@@ -56,7 +60,27 @@ export function FocusMode() {
     }
   };
 
+  const sendPomodoroNotification = () => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('⏰ Pomodoro Complete!', {
+        body: 'Time is over! Great work! Take a break.',
+        icon: '/favicon.png',
+      });
+    }
+    
+    toast({
+      title: '⏰ Pomodoro Complete!',
+      description: 'Time is over! Great work! Take a break.',
+    });
+  };
+
   const handleStart = () => {
+    if (mode === 'pomodoro' && seconds === 0) {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+      setSeconds(pomodoroMinutes * 60);
+    }
     setIsRunning(true);
   };
 
@@ -65,11 +89,19 @@ export function FocusMode() {
   };
 
   const handleReset = () => {
-    if (seconds > 0 && !isRunning) {
+    if (seconds > 0 && !isRunning && mode === 'stopwatch') {
       handleSaveSession(seconds);
     }
     setIsRunning(false);
     setSeconds(0);
+    setPomodoroSeconds(0);
+  };
+
+  const handleModeChange = (newMode: string) => {
+    setMode(newMode as 'stopwatch' | 'pomodoro');
+    setIsRunning(false);
+    setSeconds(0);
+    setPomodoroSeconds(0);
   };
 
   const formatTime = (totalSeconds: number) => {
@@ -84,8 +116,9 @@ export function FocusMode() {
   };
 
   const getProgress = () => {
-    if (mode === 'pomodoro') {
-      return (seconds / (pomodoroMinutes * 60)) * 100;
+    if (mode === 'pomodoro' && pomodoroMinutes > 0) {
+      const totalSeconds = pomodoroMinutes * 60;
+      return ((totalSeconds - seconds) / totalSeconds) * 100;
     }
     return 0;
   };
@@ -146,11 +179,24 @@ export function FocusMode() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Tabs value={mode} onValueChange={(v) => setMode(v as 'stopwatch' | 'pomodoro')}>
+          <Tabs value={mode} onValueChange={handleModeChange}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="stopwatch">Stopwatch</TabsTrigger>
               <TabsTrigger value="pomodoro">Pomodoro</TabsTrigger>
             </TabsList>
+            
+            <TabsContent value="pomodoro" className="space-y-2 mt-4">
+              <Label htmlFor="pomodoro-minutes">Duration (minutes)</Label>
+              <Input
+                id="pomodoro-minutes"
+                type="number"
+                value={pomodoroMinutes}
+                onChange={(e) => setPomodoroMinutes(Number.parseInt(e.target.value) || 25)}
+                min="1"
+                max="120"
+                disabled={isRunning}
+              />
+            </TabsContent>
           </Tabs>
 
           <div className="text-center">
@@ -158,7 +204,7 @@ export function FocusMode() {
               {formatTime(seconds)}
             </div>
 
-            {mode === 'pomodoro' && (
+            {mode === 'pomodoro' && seconds > 0 && (
               <div className="mb-4">
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div

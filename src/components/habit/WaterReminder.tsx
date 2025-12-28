@@ -12,9 +12,11 @@ export function WaterReminder() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [count, setCount] = useState(0);
+  const [targetGlasses, setTargetGlasses] = useState(8);
   const [timerMinutes, setTimerMinutes] = useState(60);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [remainingTime, setRemainingTime] = useState(0);
+  const [completedGlasses, setCompletedGlasses] = useState(0);
 
   useEffect(() => {
     if (user) {
@@ -29,8 +31,7 @@ export function WaterReminder() {
       interval = setInterval(() => {
         setRemainingTime(prev => {
           if (prev <= 1) {
-            sendNotification();
-            setIsTimerActive(false);
+            handleTimerComplete();
             return 0;
           }
           return prev - 1;
@@ -84,36 +85,54 @@ export function WaterReminder() {
     }
   };
 
+  const handleTimerComplete = () => {
+    setCompletedGlasses(prev => prev + 1);
+    
+    sendNotification(completedGlasses + 1);
+    
+    if (completedGlasses + 1 < targetGlasses) {
+      setRemainingTime(timerMinutes * 60);
+      toast({
+        title: '💧 Water Reminder',
+        description: `Glass ${completedGlasses + 1} of ${targetGlasses} - Time to drink water!`,
+      });
+    } else {
+      setIsTimerActive(false);
+      setCompletedGlasses(0);
+      toast({
+        title: '🎉 Goal Complete!',
+        description: `You've completed all ${targetGlasses} glasses today!`,
+      });
+    }
+  };
+
   const startTimer = () => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
     
+    setCompletedGlasses(0);
     setRemainingTime(timerMinutes * 60);
     setIsTimerActive(true);
     toast({
       title: 'Timer Started',
-      description: `Water reminder set for ${timerMinutes} minutes`,
+      description: `Water reminder set for ${targetGlasses} glasses, every ${timerMinutes} minutes`,
     });
   };
 
   const stopTimer = () => {
     setIsTimerActive(false);
     setRemainingTime(0);
+    setCompletedGlasses(0);
   };
 
-  const sendNotification = () => {
+  const sendNotification = (glassNumber: number) => {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('💧 Water Reminder', {
-        body: 'Time to drink water! Stay hydrated!',
+        body: `Glass ${glassNumber} of ${targetGlasses} - Time to drink water! Stay hydrated!`,
         icon: '/favicon.png',
       });
     }
-    
-    toast({
-      title: '💧 Water Reminder',
-      description: 'Time to drink water! Stay hydrated!',
-    });
   };
 
   const formatTime = (seconds: number) => {
@@ -145,7 +164,20 @@ export function WaterReminder() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="timer-minutes">Timer (minutes)</Label>
+          <Label htmlFor="target-glasses">Target Glasses</Label>
+          <Input
+            id="target-glasses"
+            type="number"
+            value={targetGlasses}
+            onChange={(e) => setTargetGlasses(Number.parseInt(e.target.value) || 8)}
+            min="1"
+            max="20"
+            disabled={isTimerActive}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="timer-minutes">Interval (minutes)</Label>
           <Input
             id="timer-minutes"
             type="number"
@@ -159,8 +191,13 @@ export function WaterReminder() {
 
         {isTimerActive ? (
           <div className="space-y-2">
-            <div className="text-center text-2xl font-mono">
-              {formatTime(remainingTime)}
+            <div className="text-center">
+              <div className="text-sm text-muted-foreground">
+                Glass {completedGlasses + 1} of {targetGlasses}
+              </div>
+              <div className="text-2xl font-mono font-bold">
+                {formatTime(remainingTime)}
+              </div>
             </div>
             <Button variant="destructive" className="w-full" onClick={stopTimer}>
               Stop Timer
