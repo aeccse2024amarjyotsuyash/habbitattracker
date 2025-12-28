@@ -6,17 +6,19 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Download, Upload, Bell, Clock, Target, Calendar } from 'lucide-react';
-import { getHabits, createHabit, updateHabit, deleteHabit, getHabitLogs, upsertHabitLog, getDailyNote, upsertDailyNote } from '@/db/api';
-import type { Habit, HabitLog, DailyNote } from '@/types';
+import { Plus, Download, TrendingUp, Target, Clock, Moon } from 'lucide-react';
+import { getHabits, createHabit, deleteHabit, getHabitLogs, upsertHabitLog, getFocusSessions, getSleepLogs, getGoals } from '@/db/api';
+import type { Habit, HabitLog, FocusSession, SleepLog, Goal } from '@/types';
 import { HabitTable } from '@/components/habit/HabitTable';
 import { TodoList } from '@/components/habit/TodoList';
 import { WaterReminder } from '@/components/habit/WaterReminder';
 import { FocusMode } from '@/components/habit/FocusMode';
 import { ShortcutsPanel } from '@/components/habit/ShortcutsPanel';
+import { AnalyticsSection } from '@/components/habit/AnalyticsSection';
+import { SleepTrackerSection } from '@/components/habit/SleepTrackerSection';
+import { GoalsSection } from '@/components/habit/GoalsSection';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -30,11 +32,11 @@ export default function DashboardPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [habits, setHabits] = useState<Habit[]>([]);
   const [habitLogs, setHabitLogs] = useState<HabitLog[]>([]);
-  const [dailyNotes, setDailyNotes] = useState<Record<string, DailyNote>>({});
   const [loading, setLoading] = useState(true);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitPriority, setNewHabitPriority] = useState('0');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('habits');
 
   useEffect(() => {
     if (user) {
@@ -183,112 +185,140 @@ export default function DashboardPage() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
-      <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <Select value={String(selectedMonth)} onValueChange={(v) => setSelectedMonth(Number.parseInt(v))}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((month, index) => (
-                <SelectItem key={month} value={String(index + 1)}>
-                  {month}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="habits">Habits</TabsTrigger>
+          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="sleep">Sleep Tracker</TabsTrigger>
+          <TabsTrigger value="goals">Goals</TabsTrigger>
+        </TabsList>
 
-          <Input
-            type="number"
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number.parseInt(e.target.value) || new Date().getFullYear())}
-            className="w-32"
-            min="2000"
-            max="2100"
-          />
-        </div>
+        <TabsContent value="habits" className="space-y-6">
+          <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <Select value={String(selectedMonth)} onValueChange={(v) => setSelectedMonth(Number.parseInt(v))}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((month, index) => (
+                    <SelectItem key={month} value={String(index + 1)}>
+                      {month}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-        <div className="flex flex-wrap gap-2">
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Habit
+              <Input
+                type="number"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number.parseInt(e.target.value) || new Date().getFullYear())}
+                className="w-32"
+                min="2000"
+                max="2100"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Habit
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Habit</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="habit-name">Habit Name</Label>
+                      <Input
+                        id="habit-name"
+                        value={newHabitName}
+                        onChange={(e) => setNewHabitName(e.target.value)}
+                        placeholder="Enter habit name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="habit-priority">Priority</Label>
+                      <Select value={newHabitPriority} onValueChange={setNewHabitPriority}>
+                        <SelectTrigger id="habit-priority">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Normal</SelectItem>
+                          <SelectItem value="1">High</SelectItem>
+                          <SelectItem value="2">Very High</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={handleAddHabit} className="w-full">
+                      Add Habit
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Button variant="outline" onClick={handleExportCSV}>
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Habit</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="habit-name">Habit Name</Label>
-                  <Input
-                    id="habit-name"
-                    value={newHabitName}
-                    onChange={(e) => setNewHabitName(e.target.value)}
-                    placeholder="Enter habit name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="habit-priority">Priority</Label>
-                  <Select value={newHabitPriority} onValueChange={setNewHabitPriority}>
-                    <SelectTrigger id="habit-priority">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">Normal</SelectItem>
-                      <SelectItem value="1">High</SelectItem>
-                      <SelectItem value="2">Very High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={handleAddHabit} className="w-full">
-                  Add Habit
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+            </div>
+          </div>
 
-          <Button variant="outline" onClick={handleExportCSV}>
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
-      </div>
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div className="xl:col-span-3 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Habit Tracker</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : (
+                    <HabitTable
+                      habits={habits}
+                      habitLogs={habitLogs}
+                      selectedMonth={selectedMonth}
+                      selectedYear={selectedYear}
+                      onUpdateLog={handleUpdateHabitLog}
+                      onDeleteHabit={handleDeleteHabit}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div className="xl:col-span-3 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Habit Tracker</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </div>
-              ) : (
-                <HabitTable
-                  habits={habits}
-                  habitLogs={habitLogs}
-                  selectedMonth={selectedMonth}
-                  selectedYear={selectedYear}
-                  onUpdateLog={handleUpdateHabitLog}
-                  onDeleteHabit={handleDeleteHabit}
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            <div className="space-y-6">
+              <TodoList />
+              <WaterReminder />
+              <FocusMode />
+              <ShortcutsPanel />
+            </div>
+          </div>
+        </TabsContent>
 
-        <div className="space-y-6">
-          <TodoList />
-          <WaterReminder />
-          <FocusMode />
-          <ShortcutsPanel />
-        </div>
-      </div>
+        <TabsContent value="analytics">
+          <AnalyticsSection 
+            habits={habits}
+            habitLogs={habitLogs}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+          />
+        </TabsContent>
+
+        <TabsContent value="sleep">
+          <SleepTrackerSection />
+        </TabsContent>
+
+        <TabsContent value="goals">
+          <GoalsSection />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

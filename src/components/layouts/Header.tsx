@@ -8,58 +8,27 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  navigationMenuTriggerStyle,
-} from '@/components/ui/navigation-menu';
 import { useTheme } from 'next-themes';
-import { Moon, Sun, User, LogOut, CheckCircle2, Menu } from 'lucide-react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import routes from '@/routes';
+import { Moon, Sun, User, LogOut, CheckCircle2 } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 
 export function Header() {
   const { profile, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
   };
 
-  const visibleRoutes = routes.filter(route => route.visible !== false && route.path !== '/login');
-
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
-        <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2">
-            <CheckCircle2 className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold">Habit Tracker</h1>
-          </Link>
-
-          <NavigationMenu className="hidden xl:flex">
-            <NavigationMenuList>
-              {visibleRoutes.map((route) => (
-                <NavigationMenuItem key={route.path}>
-                  <Link to={route.path}>
-                    <NavigationMenuLink 
-                      className={navigationMenuTriggerStyle()}
-                      active={location.pathname === route.path}
-                    >
-                      {route.name}
-                    </NavigationMenuLink>
-                  </Link>
-                </NavigationMenuItem>
-              ))}
-            </NavigationMenuList>
-          </NavigationMenu>
-        </div>
+        <Link to="/" className="flex items-center gap-2">
+          <CheckCircle2 className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-bold">Habit Tracker</h1>
+        </Link>
 
         <div className="flex items-center gap-2">
           <Button
@@ -96,31 +65,6 @@ export function Header() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Sheet>
-            <SheetTrigger asChild className="xl:hidden">
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent>
-              <div className="flex flex-col gap-4 mt-8">
-                {visibleRoutes.map((route) => (
-                  <Link
-                    key={route.path}
-                    to={route.path}
-                    className={`text-lg font-medium ${
-                      location.pathname === route.path
-                        ? 'text-primary'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {route.name}
-                  </Link>
-                ))}
-              </div>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
     </header>
