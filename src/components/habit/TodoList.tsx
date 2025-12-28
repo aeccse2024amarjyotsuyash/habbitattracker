@@ -103,10 +103,11 @@ export function TodoList() {
     if (!dueDate) return null;
     
     const date = parseISO(dueDate);
-    if (isToday(date)) return 'Today';
-    if (isPast(date)) return 'Overdue';
-    if (isFuture(date)) return format(date, 'MMM d');
-    return null;
+    const formattedDate = format(date, 'MMM d, yyyy');
+    
+    if (isToday(date)) return `Today (${formattedDate})`;
+    if (isPast(date)) return `Overdue (${formattedDate})`;
+    return formattedDate;
   };
 
   const getDateColor = (dueDate: string | null) => {
