@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/db/supabase';
 import type { User } from '@supabase/supabase-js';
-import type { Profile } from '@/types/types';
+import type { Profile } from '@/types';
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
@@ -11,16 +11,18 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     .maybeSingle();
 
   if (error) {
-    console.error('获取用户信息失败:', error);
+    console.error('Failed to get user profile:', error);
     return null;
   }
   return data;
 }
+
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
   signIn: (username: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithGoogle: () => Promise<void>;
   signUp: (username: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -51,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setLoading(false);
     });
-    // In this function, do NOT use any await calls. Use `.then()` instead to avoid deadlocks.
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -64,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithUsername = async (username: string, password: string) => {
+  const signIn = async (username: string, password: string) => {
     try {
       const email = `${username}@miaoda.com`;
       const { error } = await supabase.auth.signInWithPassword({
@@ -79,7 +81,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUpWithUsername = async (username: string, password: string) => {
+  const signInWithGoogle = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithSSO({
+        domain: 'miaoda-gg.com',
+        options: { redirectTo: window.location.origin },
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, '_self');
+      }
+    } catch (error) {
+      console.error('Google sign in error:', error);
+      throw error;
+    }
+  };
+
+  const signUp = async (username: string, password: string) => {
     try {
       const email = `${username}@miaoda.com`;
       const { error } = await supabase.auth.signUp({
@@ -101,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signInWithUsername, signUpWithUsername, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithGoogle, signUp, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

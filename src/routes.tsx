@@ -1,4 +1,8 @@
-import SamplePage from './pages/SamplePage';
+import DashboardPage from './pages/DashboardPage';
+import LoginPage from './pages/LoginPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import SleepTrackerPage from './pages/SleepTrackerPage';
+import GoalsPage from './pages/GoalsPage';
 import type { ReactNode } from 'react';
 
 interface RouteConfig {
@@ -10,9 +14,30 @@ interface RouteConfig {
 
 const routes: RouteConfig[] = [
   {
-    name: 'Sample Page',
+    name: 'Dashboard',
     path: '/',
-    element: <SamplePage />
+    element: <DashboardPage />
+  },
+  {
+    name: 'Analytics',
+    path: '/analytics',
+    element: <AnalyticsPage />
+  },
+  {
+    name: 'Sleep Tracker',
+    path: '/sleep',
+    element: <SleepTrackerPage />
+  },
+  {
+    name: 'Goals',
+    path: '/goals',
+    element: <GoalsPage />
+  },
+  {
+    name: 'Login',
+    path: '/login',
+    element: <LoginPage />,
+    visible: false
   }
 ];
 
