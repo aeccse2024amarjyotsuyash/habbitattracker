@@ -29,18 +29,14 @@ export function WaterReminder() {
     
     if (isTimerActive && remainingTime > 0) {
       interval = setInterval(() => {
-        setRemainingTime(prev => {
-          if (prev <= 1) {
-            handleTimerComplete();
-            return 0;
-          }
-          return prev - 1;
-        });
+        setRemainingTime(prev => prev - 1);
       }, 1000);
+    } else if (isTimerActive && remainingTime === 0) {
+      handleTimerComplete();
     }
 
     return () => clearInterval(interval);
-  }, [isTimerActive, remainingTime]);
+  }, [isTimerActive, remainingTime, completedGlasses, targetGlasses]);
 
   const loadWaterCount = async () => {
     if (!user) return;
@@ -86,16 +82,18 @@ export function WaterReminder() {
   };
 
   const handleTimerComplete = () => {
-    setCompletedGlasses(prev => prev + 1);
+    const nextGlass = completedGlasses + 1;
     
-    sendNotification(completedGlasses + 1);
+    sendNotification(nextGlass);
     
-    if (completedGlasses + 1 < targetGlasses) {
+    toast({
+      title: '💧 Water Reminder',
+      description: `Glass ${nextGlass} of ${targetGlasses} - Time to drink water!`,
+    });
+    
+    if (nextGlass < targetGlasses) {
+      setCompletedGlasses(nextGlass);
       setRemainingTime(timerMinutes * 60);
-      toast({
-        title: '💧 Water Reminder',
-        description: `Glass ${completedGlasses + 1} of ${targetGlasses} - Time to drink water!`,
-      });
     } else {
       setIsTimerActive(false);
       setCompletedGlasses(0);
@@ -107,6 +105,15 @@ export function WaterReminder() {
   };
 
   const startTimer = () => {
+    if (targetGlasses < 1 || timerMinutes < 1) {
+      toast({
+        title: 'Invalid Input',
+        description: 'Please enter valid target glasses and interval',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
@@ -172,7 +179,6 @@ export function WaterReminder() {
             onChange={(e) => setTargetGlasses(Number.parseInt(e.target.value) || 8)}
             min="1"
             max="20"
-            disabled={isTimerActive}
           />
         </div>
 
@@ -185,7 +191,6 @@ export function WaterReminder() {
             onChange={(e) => setTimerMinutes(Number.parseInt(e.target.value) || 60)}
             min="1"
             max="180"
-            disabled={isTimerActive}
           />
         </div>
 
